@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          install: false
+      - name: Link plugin
+        run: mise plugin link spinel .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install spinel
+        run: mise install spinel@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check spinel
+        run: |
+          mise exec spinel@latest -- spinel --version
+          cd "$(mktemp -d)"
+          mise exec spinel@latest -- spinel -e 'puts 42'
+          test "$(./a)" = "42"
+          mise exec spinel@latest -- spin new demo
+          cd demo && mise exec spinel@latest -- spin run
