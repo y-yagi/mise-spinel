@@ -1,7 +1,7 @@
 PLUGIN = {}
 
 PLUGIN.name = "spinel"
-PLUGIN.version = "0.1.0"
+PLUGIN.version = "0.2.0"
 PLUGIN.homepage = "https://github.com/y-yagi/mise-spinel"
 PLUGIN.license = "MIT"
 PLUGIN.description = "Spinel - Ruby AOT compiler (https://github.com/matz/spinel)"
