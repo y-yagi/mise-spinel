@@ -70,6 +70,46 @@ function PLUGIN:PostInstall(ctx)
     local buildParent = string.match(buildDir, "^(.*)/[^/]*$") or "/"
     local make = "GIT_CEILING_DIRECTORIES=" .. sq(buildParent) .. " make"
 
+    -- The wasm32-wasi runtime (`spinel --target=wasm32-wasi`) is not part of the default build:
+    -- `make wasm-rt` builds it with the wasi-sdk, which is looked up the way Spinel does
+    -- (WASI_SDK, then WASI_SDK_PATH, else /opt/wasi-sdk). `make install` copies it when built.
+    -- Older Spinel (the 2026.09.12 release and earlier) has no `wasm-rt` target at all.
+    -- SPINEL_WASM_RT: unset builds it when both are there, 0 never, 1 always (required).
+    -- Decide before the long native build, so a bad setting fails early.
+    local wasmRt = os.getenv("SPINEL_WASM_RT") or ""
+    if wasmRt ~= "" and wasmRt ~= "0" and wasmRt ~= "1" then
+        cleanup()
+        error("SPINEL_WASM_RT must be 0, 1 or unset (got '" .. wasmRt .. "')")
+    end
+    local buildWasmRt = false
+    local wasiSdk = os.getenv("WASI_SDK")
+    if wasiSdk == nil or wasiSdk == "" then
+        wasiSdk = os.getenv("WASI_SDK_PATH")
+    end
+    if wasiSdk == nil or wasiSdk == "" then
+        wasiSdk = "/opt/wasi-sdk"
+    end
+    if wasmRt == "0" then
+        print("SPINEL_WASM_RT=0: skipping the wasm32-wasi runtime")
+    else
+        local skipReason = nil
+        if not ok(os.execute("grep -q '^wasm-rt:' " .. sq(buildDir .. "/Makefile"))) then
+            skipReason = "this Spinel version has no wasm32-wasi support (no `make wasm-rt`)"
+        elseif not ok(os.execute("test -x " .. sq(wasiSdk .. "/bin/clang"))) then
+            skipReason = "no wasi-sdk found at "
+                .. wasiSdk
+                .. " (set WASI_SDK or WASI_SDK_PATH to the wasi-sdk directory)"
+        end
+        if skipReason == nil then
+            buildWasmRt = true
+        elseif wasmRt == "1" then
+            cleanup()
+            error("SPINEL_WASM_RT=1 but " .. skipReason)
+        else
+            print("Skipping the wasm32-wasi runtime: " .. skipReason)
+        end
+    end
+
     if not is_spinel_release(sdkInfo.version) then
         -- The git source archive bundles neither prism nor rbs; fetch them from rubygems.org
         if not ok(os.execute("command -v curl >/dev/null 2>&1")) then
@@ -111,11 +151,37 @@ function PLUGIN:PostInstall(ctx)
         "Failed to build Spinel (set SPINEL_KEEP_BUILD=1 to keep the build directory: " .. buildDir .. ")"
     )
 
+    if buildWasmRt then
+        print("Building the wasm32-wasi runtime with the wasi-sdk at " .. wasiSdk .. "...")
+        run(
+            string.format("cd %s && %s -j%s wasm-rt WASI_SDK=%s %s", sq(buildDir), make, nproc, sq(wasiSdk), makeOpts),
+            "Failed to build the wasm32-wasi runtime (set SPINEL_KEEP_BUILD=1 to keep the build directory: "
+                .. buildDir
+                .. ", or SPINEL_WASM_RT=0 to skip it)"
+        )
+    end
+
     print("Installing Spinel...")
     run(
         string.format("cd %s && %s install PREFIX=%s %s", sq(buildDir), make, sq(sdkPath), makeOpts),
         "Failed to install Spinel"
     )
+
+    if buildWasmRt then
+        -- `make wasm-rt` also builds the runtime for `--exceptions=abort`, but upstream's install
+        -- rule copies only libspinel_rt.a. Install it too so that option works.
+        local noexcLib = "lib/wasm32-wasi/libspinel_rt_noexc.a"
+        run(
+            string.format(
+                "cd %s && if [ -f %s ]; then install -m 644 %s %s; fi",
+                sq(buildDir),
+                noexcLib,
+                noexcLib,
+                sq(sdkPath .. "/lib/spinel/lib/wasm32-wasi/")
+            ),
+            "Failed to install the wasm32-wasi runtime for --exceptions=abort"
+        )
+    end
 
     cleanup()
     print("Spinel installation complete!")
