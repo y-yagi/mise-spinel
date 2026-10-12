@@ -42,7 +42,10 @@ function PLUGIN:Available(ctx)
 
         for _, release in ipairs(releases) do
             local tag = release.tag_name
-            if tag ~= nil and (string.match(tag, "^%d%d%d%d%.%d%d%.%d%d$") or string.match(tag, "^%d%d%d%d%.%d%d%.%d%d%.%d+$")) then
+            if
+                tag ~= nil
+                and (string.match(tag, "^%d%d%d%d%.%d%d%.%d%d$") or string.match(tag, "^%d%d%d%d%.%d%d%.%d%d%.%d+$"))
+            then
                 local wanted = "spinel-" .. tag .. ".tar.xz"
                 local has_asset = false
                 for _, asset in ipairs(release.assets or {}) do

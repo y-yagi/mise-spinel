@@ -25,7 +25,11 @@ function PLUGIN:PostInstall(ctx)
     -- $CC may contain arguments; check the first word only
     local cc_bin = string.match(cc, "^%s*(%S+)") or "cc"
     if not ok(os.execute("command -v " .. sq(cc_bin) .. " >/dev/null 2>&1")) then
-        error("C compiler '" .. cc_bin .. "' not found. Install a C compiler (e.g. build-essential / Xcode CLT) or set CC.")
+        error(
+            "C compiler '"
+                .. cc_bin
+                .. "' not found. Install a C compiler (e.g. build-essential / Xcode CLT) or set CC."
+        )
     end
     if not ok(os.execute("command -v make >/dev/null 2>&1")) then
         error("'make' not found. Please install make.")
@@ -52,7 +56,7 @@ function PLUGIN:PostInstall(ctx)
     run("rm -rf " .. sq(buildDir) .. " && mkdir -p " .. sq(buildDir), "Failed to create build directory")
     run(
         string.format(
-            "cd %s && for f in * .[!.]* ..?*; do [ -e \"$f\" ] || [ -L \"$f\" ] || continue; mv \"$f\" %s/; done",
+            'cd %s && for f in * .[!.]* ..?*; do [ -e "$f" ] || [ -L "$f" ] || continue; mv "$f" %s/; done',
             sq(sdkPath),
             sq(buildDir)
         ),
