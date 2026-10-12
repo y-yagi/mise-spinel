@@ -48,3 +48,41 @@ jobs:
           test "$(./a)" = "42"
           mise exec spinel@${{ matrix.version }} -- spin new demo
           cd demo && mise exec spinel@${{ matrix.version }} -- spin run
+
+  wasm:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    # Needs Spinel's master (no release has `make wasm-rt` yet), which depends on the state of upstream
+    continue-on-error: true
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          install: false
+      - name: Install wasi-sdk and wasmtime
+        run: |
+          mise install github:WebAssembly/wasi-sdk@wasi-sdk-34 wasmtime@latest
+          echo "WASI_SDK=$(mise where github:WebAssembly/wasi-sdk@wasi-sdk-34)" >> "$GITHUB_ENV"
+      - name: Link plugin
+        run: mise plugin link spinel .
+      - name: Install spinel with the wasm32-wasi runtime
+        run: mise install spinel@master
+        env:
+          SPINEL_WASM_RT: "1"
+      - name: Check wasm32-wasi
+        run: |
+          lib="$(mise where spinel@master)/lib/spinel/lib/wasm32-wasi"
+          ls -l "$lib"
+          test -f "$lib/libspinel_rt.a"
+          test -f "$lib/libspinel_rt_noexc.a"
+          cd "$(mktemp -d)"
+          echo 'puts 6 * 7' > t.rb
+          mise exec spinel@master -- spinel --target=wasm32-wasi t.rb -o t.wasm
+          mise exec spinel@master -- spinel --target=wasm32-wasi --exceptions=abort t.rb -o t_abort.wasm
+          test "$(mise exec wasmtime@latest -- wasmtime run t.wasm)" = "42"
+          test "$(mise exec wasmtime@latest -- wasmtime run -W exceptions=n t_abort.wasm)" = "42"
