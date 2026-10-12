@@ -65,16 +65,55 @@ function PLUGIN:PostInstall(ctx)
 
     local makeOpts = os.getenv("SPINEL_MAKE_OPTS") or ""
     local nproc = "$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
+    -- The Makefile asks git for the revision first. Stop git from finding a repository that
+    -- encloses the build directory (e.g. a dotfiles repo at $HOME) and reporting its HEAD.
+    local buildParent = string.match(buildDir, "^(.*)/[^/]*$") or "/"
+    local make = "GIT_CEILING_DIRECTORIES=" .. sq(buildParent) .. " make"
+
+    if not is_spinel_release(sdkInfo.version) then
+        -- The git source archive bundles neither prism nor rbs; fetch them from rubygems.org
+        if not ok(os.execute("command -v curl >/dev/null 2>&1")) then
+            cleanup()
+            error("'curl' not found. It is required to build Spinel from source.")
+        end
+        print("Fetching Spinel dependencies (prism, rbs)...")
+        run(
+            string.format("cd %s && %s deps %s", sq(buildDir), make, makeOpts),
+            "Failed to fetch Spinel dependencies (check access to rubygems.org)"
+        )
+
+        -- The archive carries no .git; record the revision so `spinel --version` names it.
+        -- PreInstall pinned the download to this revision. If it could not, fall back to the
+        -- version itself when it already looks like a commit SHA.
+        local version = sdkInfo.version
+        local rev = SPINEL_SOURCE_REVISIONS and SPINEL_SOURCE_REVISIONS[version]
+        if rev == nil and string.match(version, "^%x%x%x%x%x%x%x+$") then
+            rev = version
+        end
+        if rev == nil then
+            print("warning: could not determine the Spinel source revision; `spinel --version` will show 'unknown'")
+        else
+            local f = io.open(buildDir .. "/.spinel-dist", "w")
+            if f == nil then
+                print(
+                    "warning: could not write " .. buildDir .. "/.spinel-dist; `spinel --version` will show 'unknown'"
+                )
+            else
+                f:write(string.sub(rev, 1, 7) .. "\n\n")
+                f:close()
+            end
+        end
+    end
 
     print("Building Spinel (this may take several minutes)...")
     run(
-        string.format("cd %s && make -j%s %s", sq(buildDir), nproc, makeOpts),
+        string.format("cd %s && %s -j%s %s", sq(buildDir), make, nproc, makeOpts),
         "Failed to build Spinel (set SPINEL_KEEP_BUILD=1 to keep the build directory: " .. buildDir .. ")"
     )
 
     print("Installing Spinel...")
     run(
-        string.format("cd %s && make install PREFIX=%s %s", sq(buildDir), sq(sdkPath), makeOpts),
+        string.format("cd %s && %s install PREFIX=%s %s", sq(buildDir), make, sq(sdkPath), makeOpts),
         "Failed to install Spinel"
     )
 

@@ -23,7 +23,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+        version: [latest, master]
     runs-on: ${{ matrix.os }}
+    # master depends on the state of upstream; don't let it fail the build
+    continue-on-error: ${{ matrix.version == 'master' }}
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2
@@ -34,14 +37,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Install spinel
-        run: mise install spinel@latest
+        run: mise install spinel@${{ matrix.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Check spinel
         run: |
-          mise exec spinel@latest -- spinel --version
+          mise exec spinel@${{ matrix.version }} -- spinel --version
           cd "$(mktemp -d)"
-          mise exec spinel@latest -- spinel -e 'puts 42'
+          mise exec spinel@${{ matrix.version }} -- spinel -e 'puts 42'
           test "$(./a)" = "42"
-          mise exec spinel@latest -- spin new demo
-          cd demo && mise exec spinel@latest -- spin run
+          mise exec spinel@${{ matrix.version }} -- spin new demo
+          cd demo && mise exec spinel@${{ matrix.version }} -- spin run
