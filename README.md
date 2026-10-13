@@ -78,8 +78,10 @@ With mise, the wasi-sdk can be installed and `WASI_SDK` set in `mise.toml`. `dep
 spinel = { version = "master", depends = ["github:WebAssembly/wasi-sdk"] }
 
 [env]
-WASI_SDK = { value = "{{ tools['github:WebAssembly/wasi-sdk'].path | default(value='') }}", tools = true }
+WASI_SDK = { value = "{% if tools['github:WebAssembly/wasi-sdk'] is defined %}{{ tools['github:WebAssembly/wasi-sdk'].path }}{% endif %}", tools = true }
 ```
+
+To install Spinel without the wasi-sdk here (e.g. on CI that doesn't build wasm), disable it with `MISE_DISABLE_TOOLS=github:WebAssembly/wasi-sdk`. Leaving it out of `mise install spinel` isn't enough: mise refuses to install a tool while one in its `depends` is configured but not installed. `WASI_SDK` is then empty, and the runtime is skipped.
 
 If Spinel was installed before the wasi-sdk was available, reinstall it (e.g. `mise install -f spinel@<version>`) to build the runtime.
 
