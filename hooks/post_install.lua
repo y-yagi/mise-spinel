@@ -167,22 +167,6 @@ function PLUGIN:PostInstall(ctx)
         "Failed to install Spinel"
     )
 
-    if buildWasmRt then
-        -- `make wasm-rt` also builds the runtime for `--exceptions=abort`, but upstream's install
-        -- rule copies only libspinel_rt.a. Install it too so that option works.
-        local noexcLib = "lib/wasm32-wasi/libspinel_rt_noexc.a"
-        run(
-            string.format(
-                "cd %s && if [ -f %s ]; then install -m 644 %s %s; fi",
-                sq(buildDir),
-                noexcLib,
-                noexcLib,
-                sq(sdkPath .. "/lib/spinel/lib/wasm32-wasi/")
-            ),
-            "Failed to install the wasm32-wasi runtime for --exceptions=abort"
-        )
-    end
-
     cleanup()
     print("Spinel installation complete!")
 end
