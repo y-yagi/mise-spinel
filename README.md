@@ -58,7 +58,7 @@ When building from source, prism and rbs are fetched from rubygems.org with `mak
 | `SPINEL_KEEP_BUILD=1` | Keep the build directory (`<install path>.build`) instead of removing it |
 | `WASI_SDK` / `WASI_SDK_PATH` | The [wasi-sdk](https://github.com/WebAssembly/wasi-sdk) directory (default: `/opt/wasi-sdk`). When it is found at install time, the wasm32-wasi runtime is built too (see [WebAssembly](#webassembly-wasm32-wasi)) |
 | `SPINEL_WASM_RT` | Whether to build the wasm32-wasi runtime: unset builds it when the wasi-sdk is found and the Spinel version supports it, `0` never builds it, `1` requires it (the install fails if it cannot be built) |
-| `GITHUB_TOKEN` / `GH_TOKEN` | Used when calling the GitHub API (listing versions, resolving the source revision), to avoid rate limits |
+| `GITHUB_TOKEN` / `GH_TOKEN` | Used when calling the GitHub API (listing versions, resolving the source revision), to avoid rate limits. If the release list cannot be fetched (e.g. rate limited), releases cannot be resolved by prefix or `latest`, but exact versions and git refs still install |
 
 ## WebAssembly (wasm32-wasi)
 

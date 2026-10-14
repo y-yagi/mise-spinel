@@ -28,11 +28,16 @@ function PLUGIN:Available(ctx)
             headers = headers,
         })
 
-        if err ~= nil then
-            error("Failed to fetch Spinel releases: " .. tostring(err))
-        end
-        if resp.status_code ~= 200 then
-            error("Failed to fetch Spinel releases: HTTP " .. tostring(resp.status_code))
+        if err ~= nil or resp.status_code ~= 200 then
+            -- Don't fail: mise falls back to using the requested version literally,
+            -- so exact versions and git refs (e.g. a commit SHA) still install.
+            local reason = err ~= nil and tostring(err) or ("HTTP " .. tostring(resp.status_code))
+            local hint = ""
+            if err == nil and (resp.status_code == 403 or resp.status_code == 429) then
+                hint = " (rate limited; set GITHUB_TOKEN or GH_TOKEN to raise the limit)"
+            end
+            print("warning: could not list Spinel releases: " .. reason .. hint)
+            break
         end
 
         local releases = json.decode(resp.body)
