@@ -66,9 +66,8 @@ jobs:
           install: false
       - name: Install wasi-sdk and wasmtime
         run: |
-          # strip_components: mise 2026.11+ keeps the archive's top-level directory.
-          mise install 'github:WebAssembly/wasi-sdk[strip_components=1]@wasi-sdk-34' wasmtime@latest
-          echo "WASI_SDK=$(mise where 'github:WebAssembly/wasi-sdk[strip_components=1]@wasi-sdk-34')" >> "$GITHUB_ENV"
+          mise install github:WebAssembly/wasi-sdk@wasi-sdk-34 wasmtime@latest
+          echo "WASI_SDK=$(mise where github:WebAssembly/wasi-sdk@wasi-sdk-34)" >> "$GITHUB_ENV"
       - name: Link plugin
         run: mise plugin link spinel .
       - name: Install spinel with the wasm32-wasi runtime
